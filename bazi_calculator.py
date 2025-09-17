@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import json
 from lunar_python import Solar
 from datetime import datetime
