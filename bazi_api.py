@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from bazi_calculator import generate_summary
 
@@ -7,6 +8,15 @@ bazi_api = FastAPI(
     title="Bazi Analysis API",
     description="API for Bazi / Four Pillars of Destiny analysis",
     version="1.0.0"
+)
+
+# Allow all origins (for now)
+bazi_api.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or restrict to your domain later
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 class BaziInput(BaseModel):
@@ -24,4 +34,6 @@ def bazi_analysis(input_data: BaziInput):
 @bazi_api.get("/")
 def read_root():
     return {"message": "Welcome to Bazi API! POST to /bazi with birth, time, tz, gender"}
+
+
 
