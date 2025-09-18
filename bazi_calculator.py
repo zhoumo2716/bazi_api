@@ -51,6 +51,32 @@ SEASON_TABLE = {
     "丑": {"土": "旺", "金": "相", "水": "休", "木": "囚", "火": "死"},
 }
 
+GANZHI_PINYIN = {
+    "甲": "jia",
+    "乙": "yi",
+    "丙": "bing",
+    "丁": "ding",
+    "戊": "wu",
+    "己": "ji",
+    "庚": "geng",
+    "辛": "xin",
+    "壬": "ren",
+    "癸": "gui",
+    "子": "zi",
+    "丑": "chou",
+    "寅": "yin",
+    "卯": "mao",
+    "辰": "chen",
+    "巳": "si",
+    "午": "wu",
+    "未": "wei",
+    "申": "shen",
+    "酉": "you",
+    "戌": "xu",
+    "亥": "hai",
+}
+
+
 ELEMENT_TRANSLATION = {
         "木": "wood",
         "火": "fire",
@@ -62,12 +88,21 @@ ELEMENT_TRANSLATION = {
 # 五行能量强度调整
 STATE_WEIGHTS = {
     "旺": 1.3,   # 旺季：+30%
-    "相": 1.15,  # 相：+15%
+    "相": 1.2,  # 相：+15%
     "余": 1.05,  # 有余气：+5%
     "休": 1.0,   # 休：保持不变
-    "囚": 0.85,  # 囚：-15%
-    "死": 0.7    # 死：-30%
+    "囚": 0.9,  # 囚：-15%
+    "死": 0.8    # 死：-30%
 }
+
+STATE_TRANSLATION = {
+    "旺": "Strong / Flourishing",
+    "相": "Supporting / Growing",
+    "休": "Resting / Receding",
+    "囚": "Weak / Restricted",
+    "死": "Dormant / Fading",
+}
+
 
 POSITION_WEIGHTS = {
         "年干": 0.5,
@@ -109,13 +144,21 @@ STEM_POLARITY = {
 }
 
 # ten-god english translations (optional)
-TEN_GOD_TRANSLATION = {
-    "比肩":"BiJian", "劫财":"JieCai",
-    "伤官":"ShangGuan", "食神":"ShiShen",
-    "偏印":"PianYin", "正印":"ZhengYin",
-    "七杀":"QiSha", "正官":"ZhengGuan",
-    "偏财":"PianCai", "正财":"ZhengCai",
+TEN_GODS_TRANSLATION = {
+    "比肩": "BiJian Star, Friend and Self (比肩)",
+    "劫财": "JieCai Star, Rival (劫财)",
+    "食神": "ShiShen Star, Artisan (食神)",
+    "伤官": "ShangGuan Star, Performer (伤官)",
+    "偏财": "PianCai Star, Opportunity Wealth (偏财)",
+    "正财": "ZhengCai Star, Stable Wealth (正财)",
+    "七杀": "QiSha Star, Challenger (七杀)",
+    "正官": "ZhengGuan Star, Authority (正官)",
+    "偏印": "PianYin Star, Unconventional Resource (偏印)",
+    "正印": "ZhengYin Star, Direct Resource (正印)",
 }
+
+TEN_GODS_TRANSLATION_REVERSE = {v: k for k, v in TEN_GODS_TRANSLATION.items()}
+
 
 def calc_bazi(data):
     birth = data["birth"]
@@ -135,25 +178,25 @@ def calc_bazi(data):
     lunar = solar.getLunar()
 
     pillars = {
-        "年柱": lunar.getYearInGanZhi(),
-        "月柱": lunar.getMonthInGanZhi(),
-        "日柱": lunar.getDayInGanZhi(),
-        "时柱": lunar.getTimeInGanZhi(),
+        "年柱 Year Pillar": lunar.getYearInGanZhi(),
+        "月柱 Month Pillar": lunar.getMonthInGanZhi(),
+        "日柱 Day Pillar": lunar.getDayInGanZhi(),
+        "时柱 Hour Pillar": lunar.getTimeInGanZhi(),
     }
+    pillars_eng = {k: "".join(f"{ch}({GANZHI_PINYIN.get(ch, ch)})" for ch in v) for k, v in pillars.items()}
 
 
-
-    explanation = []
-    explanation.append(f"出生日期当地时区为 = {datetime(year, month, day, hour, minute)}, 该数据信息不会被系统所保留，退出页面后自动删除。")
-    explanation.append(f"对应八字年柱为: {pillars['年柱']}, 月柱为: {pillars['月柱']}, 日柱为: {pillars['日柱']}, 时柱为: {pillars['时柱']}。")
-    bazi_exp = "\n".join(explanation)
+    #explanation = []
+    #explanation.append(f"出生日期当地时区为 = {datetime(year, month, day, hour, minute)}, 该数据信息不会被系统所保留，退出页面后自动删除。")
+    #explanation.append(f"对应八字年柱为: {pillars['年柱']}, 月柱为: {pillars['月柱']}, 日柱为: {pillars['日柱']}, 时柱为: {pillars['时柱']}。")
+    #bazi_exp = "\n".join(explanation)
 
     result = {
         "local_tz": tz_str,
         "beijing_tz": dt_bj,
         "fourPillars": pillars,
         "dayMaster": lunar.getDayGan(),
-        "bazi_explanation": bazi_exp
+        #"bazi_explanation": bazi_exp
     }
 
     return result   
@@ -163,12 +206,14 @@ def five_elements(pillars,day_master):
     # 五行得分
     elements_score = {"木": 0, "火": 0, "土": 0, "金": 0, "水": 0}
     pillars_elements_str = []  # 每柱的五行表示
+    pillars_elements_str_eng = []
 
     for pos, p in pillars.items():
         gan, zhi = p[0], p[1]
 
         # 记录天干对应的五行
         gan_elem = STEM_TO_ELEMENT[gan] 
+        gan_elem_eng = ELEMENT_TRANSLATION[gan_elem]
 
         # 天干直接加 1.0
         elements_score[STEM_TO_ELEMENT[gan]] += 1.0
@@ -176,8 +221,10 @@ def five_elements(pillars,day_master):
      
         # 地支藏干记录
         zhi_elems = [STEM_TO_ELEMENT[hidden_gan] for hidden_gan, _ in BRANCH_HIDDEN_STEMS[zhi]]
+        zhi_elems_eng = [ELEMENT_TRANSLATION[elem] for elem in zhi_elems]
 
         zhi_elem_str = "".join(zhi_elems)
+        zhi_elem_str_eng = " and ".join(zhi_elems_eng)
  
         # 地支藏干加权 根据权重表“地支藏干 + 权重”
         for hidden_gan, weight in BRANCH_HIDDEN_STEMS[zhi]:
@@ -188,13 +235,17 @@ def five_elements(pillars,day_master):
         pillar_str = f"{gan}({gan_elem}) + {zhi}({zhi_elem_str})"
         pillars_elements_str.append(pillar_str)
 
+        pillar_str_eng = f"{gan}({gan_elem_eng}) + {zhi}({zhi_elem_str_eng})"
+        pillars_elements_str_eng.append(pillar_str_eng)
 
-    #elements_score_eng = {f"{cn} {ELEMENT_TRANSLATION[cn]}": val 
-          #for cn, val in elements_score.items()}
+
+    elements_score_eng = {f"{cn} {ELEMENT_TRANSLATION[cn]}": val 
+          for cn, val in elements_score.items()}
     
 
     # 根据月令调整五行得分
-    month_branch = pillars["月柱"][1]  # 月柱地支
+    #month_branch = pillars["月柱 Month Pillar"][1]  # 月柱地支
+    month_branch = pillars["月柱 Month Pillar"][1]  # 月柱地支
     season_state = SEASON_TABLE[month_branch]  # 获取当月旺衰状态表
     adjusted_score = {}
     state_record = {}   # 记录每个五行的状态
@@ -205,47 +256,59 @@ def five_elements(pillars,day_master):
         weight = STATE_WEIGHTS[state]    # 状态对应的修正系数 "旺": 1.3, "相": 1.15, "余": 1.05, "休": 1.0, "囚": 0.85, "死": 0.7
         adjusted_score[elem] = round(score * weight, 3)
  
-    #adjusted_score_eng = {f"{cn} {ELEMENT_TRANSLATION[cn]}": val 
-    #      for cn, val in adjusted_score.items()}
+    adjusted_score_eng = {f"{cn} {ELEMENT_TRANSLATION[cn]}": val 
+          for cn, val in adjusted_score.items()}
+    
+    state_record_eng = {
+    ELEMENT_TRANSLATION[elem]: STATE_TRANSLATION[state]
+    for elem, state in state_record.items()}
+
 
     
-    explanation = []
-    explanation.append(
-    f"八字的五行（天干+地支）为: " + ", ".join(pillars_elements_str) + "。"
-    f"根据月令（月柱地支）对应的五行状态为: "
-    + " ".join([f"{k}={v}" for k, v in state_record.items()]) + "。"
-    )
+    #explanation = []
+    #explanation.append(
+    #f"八字的五行（天干+地支）为: " + ", ".join(pillars_elements_str) + "。"
+    #f"根据月令（月柱地支）对应的五行状态为: "
+    #+ " ".join([f"{k}={v}" for k, v in state_record.items()]) + "。"
+    #)
 
-    score_explanation = []
-    score_explanation.append(
-    f"在五行强弱的具体分布上，未经过月令调整的五行得分为: "
-    + " ".join([f"{k} = {round(v, 2)}" for k, v in elements_score.items()]) + "。"
-    f"而经过月令调整后，五行得分变为: "
-    + " ".join([f"{k} = {round(v, 2)}" for k, v in adjusted_score.items()]) + "。"
-    f"这一调整反映了月令对五行力量的修正，使整体格局更贴近实际情况。"
-    )
 
-    fiveElement_exp = "\n".join(explanation)
-    fiveElement_score_exp = "\n".join(score_explanation)
+
+    #score_explanation = []
+    #score_explanation.append(
+    #f"在五行强弱的具体分布上，未经过月令调整的五行得分为: "
+    #+ " ".join([f"{k} = {round(v, 2)}" for k, v in elements_score.items()]) + "。"
+    #f"而经过月令调整后，五行得分变为: "
+    #+ " ".join([f"{k} = {round(v, 2)}" for k, v in adjusted_score.items()]) + "。"
+    #f"这一调整反映了月令对五行力量的修正，使整体格局更贴近实际情况。"
+    #)
+
+    #fiveElement_exp = "\n".join(explanation)
+    #fiveElement_score_exp = "\n".join(score_explanation)
 
     result = {
         "fiveElementsScore": elements_score,
-        #"fiveElementsScore_eng": elements_score_eng,
+        "fiveElementsScore_eng": elements_score_eng,
         "fiveElementsScore_adjusted": adjusted_score, 
-        #"fiveElementsScore_adjusted_eng": adjusted_score_eng,
+        "fiveElementsScore_adjusted_eng": adjusted_score_eng,
         "fiveElementsState": state_record,
-        "pillarsElements_str": pillars_elements_str,
-        "fiveElement_explanation": fiveElement_exp,
-        "fiveElement_score_explanation": fiveElement_score_exp
+        "fiveElementsState_eng": state_record_eng,
+        "pillarsElements": pillars_elements_str,
+        "pillarsElements_eng": pillars_elements_str_eng
+        #"fiveElement_explanation": fiveElement_exp,
+        #"fiveElement_score_explanation": fiveElement_score_exp
 
     }
     return result
 
 def judge_strength(dayMaster, fiveElementsScore_adjusted, fiveElementsState):
     dayElement = STEM_TO_ELEMENT[dayMaster]
+    dayElement_eng = ELEMENT_TRANSLATION[dayElement]
 
     # 日主状态
     dayElement_state = fiveElementsState[dayElement]
+    dayElement_state_eng = STATE_TRANSLATION[dayElement_state]
+    
     #dayElement_score = STATE_SCORE[dayElement_state]
     
     # 力量分数
@@ -268,28 +331,53 @@ def judge_strength(dayMaster, fiveElementsScore_adjusted, fiveElementsState):
     resistance = round(leak_score + drain_score + enemy_score,3)
 
     explanation = []
+    explanation_eng = []
     #explanation.append(f"日主五行为 {dayElement}, 状态为 {dayElement_state}")
     explanation.append(f"比劫 = {same_score}")
     explanation.append(f"印星 = {helper_score}")
-    explanation.append(f"总结：助力合计 = {same_score} + {helper_score} = {power}")
+    explanation.append(f"助力合计 = {same_score} + {helper_score} = {power}")
     explanation.append(f"食伤 = {leak_score}")
     explanation.append(f"财星 = {drain_score}")
     explanation.append(f"官杀 = {enemy_score}")
-    explanation.append(f"总结：克泄合计 = {leak_score} + {drain_score} + {enemy_score} = {resistance}")
+    explanation.append(f"克泄合计 = {leak_score} + {drain_score} + {enemy_score} = {resistance}")
+
+    explanation_eng = []
+    explanation_eng.append(f"Stars of Peers (power of allies/competitors) = {same_score}")
+    explanation_eng.append(f"Stars of Resource (power of support/learning) = {helper_score}")
+    explanation_eng.append(f"Stars of Support in Total = {same_score} + {helper_score} = {power}")
+    explanation_eng.append(f"Stars of Output (power of creativity/expression) = {leak_score}")
+    explanation_eng.append(f"Stars of Wealth (power of money/resources) = {drain_score}")
+    explanation_eng.append(f"Stars of Authority (power of discipline/challenges) = {enemy_score}")
+    explanation_eng.append(f"Stars of Resistance in Total = {leak_score} + {drain_score} + {enemy_score} = {resistance}")
+
 
 
     if power > resistance * 1.5:
         strength = "身强"
         explanation.append(f"因为 助力 {power} 明显大于 克泄 {resistance}，所以日主偏强。")
+        strength_eng = "Strong"
+        explanation_eng.append(f"Since Support Power {power} is significantly greater than Resistance Power {resistance}, the Day Master is considered Strong.")
     elif resistance > power:
         strength = "身弱"
+        strength_eng = "Weak"
         explanation.append(f"因为 克泄 {resistance} 明显大于 助力 {power}，所以日主偏弱。")
+        explanation_eng.append(f"Since Resistance Power {resistance} is significantly greater than Support Power {power}, the Day Master is considered Weak.")
     else:
         strength = "中和"
+        strength_eng = "Neutral"
         explanation.append(f"因为 助力 {power} 与 克泄 {resistance} 接近，所以日主中和。")
+        explanation_eng.append(f"Since Support Power {power} and Resistance Power {resistance} are close, the Day Master is considered Neutral.")
 
-    strength_exp = "\n".join(explanation)
-    result = {"dayElement": dayElement, "dayElement_state": dayElement_state, "strength": strength, "stars_strength": stars_strength, "strength_explanation": strength_exp}
+
+    result = {"dayElement": dayElement, 
+              "dayElement_eng": dayElement_eng, 
+              "dayElement_state": dayElement_state, 
+              "dayElement_state_eng": dayElement_state_eng, 
+              "strength": strength, 
+              "strength_eng": strength_eng, 
+              "stars_strength": stars_strength, 
+              "strength_explanation": explanation,
+              "strength_explanation_eng": explanation_eng}
 
     return result
 
@@ -312,52 +400,52 @@ def get_ten_god(dayMaster, other_gan):
     day_pol = STEM_POLARITY[dayMaster] # 日干阴阳
     other_pol = STEM_POLARITY[other_gan] # 其他天干阴阳
 
-    # 日干天干相同
+# Same element as Day Master
     if other_elem == day_elem:
-        return "比肩" if other_pol == day_pol else "劫财"
+        return "BiJian Star, Friend and Self (比肩)" if other_pol == day_pol else "JieCai Star, Rival (劫财)"
 
-    # 日干 生 其他天干  => 食神/伤官
+# Day Master generates other element => Output Stars
     if GENERATE[day_elem] == other_elem:
-        return "食神" if other_pol == day_pol else "伤官"
+        return "ShiShen Star, Artisan (食神)" if other_pol == day_pol else "ShangGuan Star, Performer (伤官)"
 
-    # 其他天干 生 日干 => 正印/偏印
+# Other element generates Day Master => Resource Stars
     if GENERATE[other_elem] == day_elem:
-        return "偏印" if other_pol == day_pol else "正印"
+        return "PianYin Star, Unconventional Resource (偏印)" if other_pol == day_pol else "ZhengYin Star, Direct Resource (正印)"
 
-    # 其他天干 克 日干 => 七杀/正官
+# Other element overcomes Day Master => Authority Stars
     if OVERCOME[other_elem] == day_elem:
-        return "七杀" if other_pol == day_pol else "正官"
+        return "QiSha Star, Challenger (七杀)" if other_pol == day_pol else "ZhengGuan Star, Authority (正官)"
 
-    # 日干 克 其他天干 => 偏财/正财
+# Day Master overcomes other element => Wealth Stars
     if OVERCOME[day_elem] == other_elem:
-        return "偏财" if other_pol == day_pol else "正财"
+        return "PianCai Star, Opportunity Wealth (偏财)" if other_pol == day_pol else "ZhengCai Star, Stable Wealth (正财)"
 
     # fallback (should not happen)
     return None
 
 
-def ten_gods(fourPillars, dayMaster, gender=None):
+def compute_ten_gods(fourPillars, dayMaster, gender=None):
 
     # 初始化 summary 统计表
-    tg_summary = {tg: 0 for tg in TEN_GOD_TRANSLATION.keys()}
+    tg_summary = {tg: 0 for tg in TEN_GODS_TRANSLATION.values()}
 
     # 构造表格（两行四列）
     tg_table = {
-        "年柱": {"天干": "", "地支": ""},
-        "月柱": {"天干": "", "地支": ""},
-        "日柱": {"天干": "", "地支": ""},
-        "时柱": {"天干": "", "地支": ""},
+        "年柱 Year Pillar": {"Stem (Top Symbol) 天干": "", "Branch (Bottom Symbol) 地支": ""},
+        "月柱 Month Pillar": {"Stem (Top Symbol) 天干": "", "Branch (Bottom Symbol) 地支": ""},
+        "日柱 Day Pillar": {"Stem (Top Symbol) 天干": "", "Branch (Bottom Symbol) 地支": ""},
+        "时柱 Hour Pillar": {"Stem (Top Symbol) 天干": "", "Branch (Bottom Symbol) 地支": ""},
     }
 
     ten_gods = {}
     for pos, pillar in fourPillars.items():
         gan, zhi = pillar[0], pillar[1] #天干和地支
 
-        if pos == "日柱":
+        if pos == "日柱 Day Pillar":
             if gender:
-                tg = f"元{gender}"
+                tg = f"元{gender} Day Master"
             else:
-                tg = "日主"
+                tg = "日主 Day Master"
         else:
             tg = get_ten_god(dayMaster, gan)
 
@@ -365,7 +453,7 @@ def ten_gods(fourPillars, dayMaster, gender=None):
         if tg in tg_summary:
             tg_summary[tg] += 1.0
 
-        tg_table[pos]["天干"] = tg  # 天干行
+        tg_table[pos]["Stem (Top Symbol) 天干"] = tg  # 天干行
 
         # 地支藏干十神
         hidden_list = [] #某一个柱下面的地支藏干列表
@@ -384,8 +472,8 @@ def ten_gods(fourPillars, dayMaster, gender=None):
             if hidden_tg in tg_summary:
                 tg_summary[hidden_tg] += weight
 
-        ten_gods[pos] = {"天干": gan, "天干十神": tg, "地支藏干":hidden_list} #举例：年柱的天干和对应的十神 和 地支藏干列表对应的十神
-        tg_table[pos]["地支"] = "; ".join(hidden_strs)  # 地支行
+        ten_gods[pos] = {"Stem (Top Symbol) 天干": gan, "Ten Gods on Top Stem": tg, "Branch (Bottom Symbol) 地支": hidden_list} #举例：年柱的天干和对应的十神 和 地支藏干列表对应的十神
+        tg_table[pos]["Branch (Bottom Symbol) 地支"] = "; ".join(hidden_strs)  # 地支行
 
     # 转换为 DataFrame 方便展示
     tg_table_df = pd.DataFrame(tg_table)
@@ -407,6 +495,7 @@ def suggest_five_elem(dayMaster, strength, stars_strength, fiveElementsScore_adj
     day_elem = STEM_TO_ELEMENT[dayMaster]
 
     suggestion_lines = []
+    suggestion_lines_eng = []
 
     # 找出最弱和最强的两个五行
     min_elem = min(fiveElementsScore_adjusted, key=fiveElementsScore_adjusted.get)
@@ -417,36 +506,42 @@ def suggest_five_elem(dayMaster, strength, stars_strength, fiveElementsScore_adj
         unfavored = [day_elem, MOTHER[day_elem]]
         suggestion_lines.append("日主偏强，应以制衡和泄耗为主。")
         suggestion_lines.append(f"日主不弱，财星（{OVERCOME[day_elem]}）为喜。")
+        suggestion_lines_eng.append("The Day Master is strong, so balancing and releasing energy should be prioritized.")
+        suggestion_lines_eng.append("The Day Master is not weak, so Stars of Wealth is favorable.")
         if stars_strength["财星"] <= mean(stars_strength.values()) * 0.1:
             suggestion_lines.append(f"财星（{OVERCOME[day_elem]}）在命局中较弱，宜补财星。")
+            suggestion_lines_eng.append(f"Stars of Wealth is relatively weak in the chart, so it should be reinforced.")
             favored.append(OVERCOME[day_elem])
         if stars_strength["印星"] > stars_strength["比劫"]:
             suggestion_lines.append(f"印星（{MOTHER[day_elem]}）在命局中过旺，导致财星被压制，宜补财星。")
+            suggestion_lines_eng.append("Stars of Resource is overly strong, suppressing Stars of Wealth, so Stars of Wealth should be reinforced.")
             favored.append(OVERCOME[day_elem])
 
         favored = list(set(favored))
         unfavored = list(set(unfavored))
-        suggestion_lines.append(f"喜用神五行为: {' '.join(favored)}。")
-        suggestion_lines.append(f"忌用神五行为: {' '.join(unfavored)}。")
+
         
     elif strength == "身弱":
         favored = [day_elem, MOTHER[day_elem]]
         unfavored = [RESTRAIN[day_elem], GENERATE[day_elem]]
         suggestion_lines.append("日主偏弱，应以扶助和生养为主。")
+        suggestion_lines_eng.append("The Day Master is weak, so assistance and nurturing should be prioritized.")
         if stars_strength["财星"] > stars_strength["比劫"] + stars_strength["印星"]:
             suggestion_lines.append(f"财星（{OVERCOME[day_elem]}）在命局中过旺，而日主偏弱，难以承受，因此财星为忌。")
+            suggestion_lines_eng.append("Stars of Wealth is overly strong in the chart, but the Day Master is weak and cannot bear it, so Stars of Wealth is considered unfavorable.")
             unfavored.append(OVERCOME[day_elem])
         elif stars_strength["财星"] > stars_strength["比劫"] * 1.05:
             suggestion_lines.append(f"财星（{OVERCOME[day_elem]}）虽比日主强，但有印星帮扶，整体能驾驭财，财可为喜，但需要有印来护日主（{MOTHER[day_elem]}）。")
+            suggestion_lines_eng.append("Stars of Wealth is stronger than the Day Master, but with Stars of Resource's support, it can still be managed. In this case, Stars of Wealth can be favorable, but Stars of Resource is needed to protect the Day Master.")
             unfavored.append(OVERCOME[day_elem])
 
         favored = list(set(favored))
         unfavored = list(set(unfavored))
-        suggestion_lines.append(f"喜用神五行为: {' '.join(favored)}。")
-        suggestion_lines.append(f"忌用神五行为: {' '.join(unfavored)}。")
+   
 
     else: 
         suggestion_lines.append("日主中和，五行能量相对均衡。")
+        suggestion_lines_eng.append("The Day Master is neutral, with the five elements relatively balanced.")
         favored, unfavored = [], []
         # 提供补充性建议
         max_controller = RESTRAIN[max_elem]
@@ -454,23 +549,27 @@ def suggest_five_elem(dayMaster, strength, stars_strength, fiveElementsScore_adj
 
         if max_elem in [RESTRAIN[day_elem], GENERATE[day_elem]]:
             suggestion_lines.append(f"{max_elem} 过旺，起到一定制衡和泄耗作用，可补充些许 {max_controller} 来制衡。")
+            suggestion_lines_eng.append(f"{ELEMENT_TRANSLATION[max_elem]} is overly strong, providing control or draining effect. Consider adding some elements from {ELEMENT_TRANSLATION[max_controller]} to balance.")
             favored.append(max_controller)
             favored.append(MOTHER[day_elem])
             favored.append(day_elem)
             unfavored.append(max_elem, MOTHER[max_elem])
         elif max_elem == day_elem and stars_strength["比劫"] > mean(stars_strength.values()) * 2:
             suggestion_lines.append(f"{max_elem} 过旺，起到扶助作用，可考虑补充 {max_controller} {MOTHER[max_controller]} 来缓冲克制；")
+            suggestion_lines_eng.append(f"{ELEMENT_TRANSLATION[max_elem]} is overly strong, giving extra support. Consider adding elements from {ELEMENT_TRANSLATION[max_controller]} and {ELEMENT_TRANSLATION[MOTHER[max_controller]]} to soften its effect.")
             favored.append(max_controller)
             favored.append(MOTHER[max_controller])
             unfavored.append(max_elem)
         elif max_elem == MOTHER[day_elem] and stars_strength["印星"] > mean(stars_strength.values()) * 2:
             suggestion_lines.append(f"{max_elem} 过旺，起到生养作用，可考虑补充 {max_controller} {MOTHER[max_controller]} 来缓冲克制；")
+            suggestion_lines_eng.append(f"{ELEMENT_TRANSLATION[max_elem]} is overly strong, giving nurturing support. Consider adding elements from {ELEMENT_TRANSLATION[max_controller]} and {ELEMENT_TRANSLATION[MOTHER[max_controller]]} to moderate it.")
             favored.append(max_controller)
             favored.append(MOTHER[max_controller])
             unfavored.append(max_elem)
 
         else: #财星最大，比日主大
             suggestion_lines.append(f"财星（{max_elem}）在命局中过旺，而日主偏弱，难以承受，因此财星为忌, 宜补印星（{MOTHER[day_elem]}）来护日主。")
+            suggestion_lines_eng.append(f"Stars of Wealth is overly strong while the Day Master is weaker, making it unfavorable. Consider adding Stars of Resource ({ELEMENT_TRANSLATION[MOTHER[day_elem]]}) to protect the Day Master.")
             favored.append(MOTHER[day_elem])
             unfavored.append(RESTRAIN[day_elem])
             unfavored.append(max_elem)
@@ -482,49 +581,60 @@ def suggest_five_elem(dayMaster, strength, stars_strength, fiveElementsScore_adj
         if min_elem in [day_elem, MOTHER[day_elem]]:
             if min_mother != max_elem:
                 suggestion_lines.append(f"五行最弱的是 {min_elem}，起到扶助和生养作用，可适当补充 {min_elem} 和 {min_mother}。")
+                suggestion_lines_eng.append(f"The weakest element is {ELEMENT_TRANSLATION[min_elem]}, which provides support and nurturing. Consider adding some elements from {ELEMENT_TRANSLATION[min_elem]} and {ELEMENT_TRANSLATION[min_mother]}.")
                 favored.append(min_elem)
                 favored.append(min_mother)
                 unfavored.append(min_controller)
             else:
                 suggestion_lines.append(f"五行最弱的是 {min_elem}，起到扶助和生养作用，可适当补充 {min_elem}。")
+                suggestion_lines_eng.append(f"The weakest element is {ELEMENT_TRANSLATION[min_elem]}, which provides support and nurturing. Consider adding some elements from {ELEMENT_TRANSLATION[min_elem]}.")
                 favored.append(min_elem)
                 unfavored.append(min_controller)
 
         elif min_elem == RESTRAIN[day_elem]:
             if stars_strength["官杀"] >= mean(stars_strength.values()) * 0.7:
                 suggestion_lines.append(f"五行最弱的是 {min_elem}，起到一定制衡和泄耗作用，无需特殊处理。")
+                suggestion_lines_eng.append(f"The weakest element is {ELEMENT_TRANSLATION[min_elem]}, giving some balance or draining effect. No special action needed.")
             else:
                 suggestion_lines.append(f"五行最弱的是 {min_elem}，如果官杀太小，命局缺少约束与规范，宜补官杀({min_elem})。")
+                suggestion_lines_eng.append(f"The weakest element is {ELEMENT_TRANSLATION[min_elem]}. If Stars of Authority is too low, the chart lacks discipline. Consider adding elements from {ELEMENT_TRANSLATION[min_elem]}.")
                 favored.append(min_elem)
                 unfavored.append(min_controller)
         
         elif min_elem == GENERATE[day_elem]:
             if stars_strength["食伤"] >= mean(stars_strength.values()) * 0.7:
                 suggestion_lines.append(f"五行最弱的是 {min_elem}，起到一定制衡和泄耗作用，无需特殊处理。")
+                suggestion_lines_eng.append(f"The weakest element is {ELEMENT_TRANSLATION[min_elem]}, giving some balance or draining effect. No special action needed.")
             else:
                 suggestion_lines.append(f"五行最弱的是 {min_elem}，食伤表现了日主的才华、创造力、表达欲、子女运，同时是生财之源宜。如果食伤太小，宜补({min_elem})。")
+                suggestion_lines_eng.append(f"The weakest element is {ELEMENT_TRANSLATION[min_elem]}. Output represents talent, creativity, expression, children, and the source of wealth, consider adding elements from {ELEMENT_TRANSLATION[min_elem]}.")
                 favored.append(min_elem)
                 unfavored.append(min_controller)
         else: #财星
             suggestion_lines.append(f"五行最弱的是 {min_elem}，代表财星（{OVERCOME[day_elem]}），宜补财星。")
+            suggestion_lines_eng.append(f"The weakest element is {ELEMENT_TRANSLATION[min_elem]}, representing Stars of Wealth. Consider adding elements from {ELEMENT_TRANSLATION[min_elem]}.")
             favored.append(min_elem)
             unfavored.append(min_controller)
 
-        favored = list(set(favored))
-        unfavored = list(set(unfavored))
-        if favored:
-            suggestion_lines.append(f"喜用神五行为: {' '.join(favored)}。")
+
+    favored = list(set(favored))
+    favored_eng = [ELEMENT_TRANSLATION[ele] for ele in favored]
+    unfavored = list(set(unfavored))
+    unfavored_eng = [ELEMENT_TRANSLATION[ele] for ele in unfavored]
+    if favored:
+        suggestion_lines.append(f"喜用神五行为: {' '.join(favored)}。")
+        suggestion_lines_eng.append(f"Favored element(s): {'; '.join(favored_eng)}.")
         #if unfavored:
         #    suggestion_lines.append(f"忌用神五行为: {' '.join(unfavored)}。")
 
-
-        
-
-
+    
     return {
         "favored": favored,
+        "favored_eng": favored_eng,
         "unfavored": unfavored,
-        "suggestion": "".join(suggestion_lines)
+        "unfavored_eng": unfavored_eng,
+        "suggestion": suggestion_lines,
+        "suggestion_eng": suggestion_lines_eng
     }
 
 
@@ -569,23 +679,60 @@ def ten_god_advice(dayMaster, favored_elems, unfavored_elems):
         "七杀": "忌七杀时，过度压力或冲动冒险，需谨慎行事"
     }
 
+    favorable_map_eng = {
+    "BiJian Star, Friend and Self (比肩)": "Represents self, siblings, and partners. When favorable, BiJian encourages cooperation and connecting with like-minded people, boosting confidence and initiative.",
+    "JieCai Star, Rival (劫财)": "Represents friends, companions, and competition. When favorable, JieCai means friends can bring help and share resources.",
+    "ZhengYin Star, Direct Resource (正印)": "Represents learning, mentors, and protection. When favorable, ZhengYin suggests focusing on study, knowledge growth, and support from benefactors.",
+    "PianYin Star, Unconventional Resource (偏印)": "Represents inspiration, creativity, and intuition. When favorable, PianYin enhances imagination, spirituality, and intuitive insight.",
+    "ShiShen Star, Artisan (食神)": "Represents talent, children, and expression. When favorable, ShiShen encourages showcasing talents and sharing with others.",
+    "ShangGuan Star, Performer (伤官)": "Represents creativity, rebellion, and performance. When favorable, ShangGuan brings courage to innovate and express oneself boldly.",
+    "ZhengCai Star, Stable Wealth (正财)": "Represents wealth, responsibility, and spouse. When favorable, ZhengCai emphasizes diligence, financial management, and responsibility.",
+    "PianCai Star, Opportunity Wealth (偏财)": "Represents opportunity, adaptability, and connections. When favorable, PianCai encourages seizing opportunities, flexibility, and building networks.",
+    "ZhengGuan Star, Authority (正官)": "Represents career, responsibility, and discipline. When favorable, ZhengGuan supports following rules, taking responsibility, and career advancement.",
+    "QiSha Star, Challenger (七杀)": "Represents challenges, competition, and drive. When favorable, QiSha brings courage, decisiveness, and the power to pioneer new paths."
+    }
+
+    unfavorable_map_eng = {
+    "BiJian Star, Friend and Self (比肩)": "When unfavorable, BiJian may cause stubbornness and conflict with others; avoid being overly competitive.",
+    "JieCai Star, Rival (劫财)": "When unfavorable, JieCai can bring rivalry and conflict; learn to share and set healthy boundaries.",
+    "ZhengYin Star, Direct Resource (正印)": "When unfavorable, ZhengYin may cause over-reliance on others and lack of independence; maintain autonomy.",
+    "PianYin Star, Unconventional Resource (偏印)": "When unfavorable, PianYin may lead to unrealistic thinking or mental instability; stay grounded.",
+    "ShiShen Star, Artisan (食神)": "When unfavorable, ShiShen may cause laziness and indulgence in pleasure; practice self-discipline.",
+    "ShangGuan Star, Performer (伤官)": "When unfavorable, ShangGuan may cause impulsiveness, rebellion, and conflict with authority; control emotions.",
+    "ZhengCai Star, Stable Wealth (正财)": "When unfavorable, ZhengCai may lead to materialism or overwork; manage finances wisely and seek balance.",
+    "PianCai Star, Opportunity Wealth (偏财)": "When unfavorable, PianCai may cause opportunism and unstable relationships; be cautious in money and love matters.",
+    "ZhengGuan Star, Authority (正官)": "When unfavorable, ZhengGuan may bring restrictions or excessive pressure; learn to adjust and relax.",
+    "QiSha Star, Challenger (七杀)": "When unfavorable, QiSha may cause excessive stress or reckless risk-taking; act with caution."
+    }
+
+
+
     advice = []
+    advice_eng = []
+    
 
     # 喜神部分
     for elem in favored_elems:
         for gan in elem_to_stem(elem):
             tg = get_ten_god(dayMaster, gan)
-            if tg and tg in favorable_map:
-                advice.append(f"喜{tg}：{favorable_map[tg]}")
+            if tg and tg in favorable_map_eng:
+                reverse_key = TEN_GODS_TRANSLATION_REVERSE[tg]
+                advice.append(f"喜{reverse_key}：{favorable_map[reverse_key]}")
+                advice_eng.append(f"Favorable {tg}: {favorable_map_eng[tg]}")
 
     # 忌神部分
     for elem in unfavored_elems:
         for gan in elem_to_stem(elem):
             tg = get_ten_god(dayMaster, gan)
-            if tg and tg in unfavorable_map:
-                advice.append(f"忌{tg}：{unfavorable_map[tg]}")
+            if tg and tg in unfavorable_map_eng:
+                reverse_key = TEN_GODS_TRANSLATION_REVERSE[tg]
+                advice.append(f"忌{reverse_key}：{unfavorable_map[reverse_key]}")
+                advice_eng.append(f"Unfavorable {tg}: {unfavorable_map_eng[tg]}")
 
-    result = ";\n".join(advice) + "。"
+    result = {
+        "advice":advice, 
+        "advice_eng": advice_eng
+    }
     return result
 
 
@@ -622,14 +769,15 @@ def generate_summary(data):
         fe["fiveElementsScore_adjusted"],
         fe["fiveElementsState"]
     )
-    ten_gods_result = ten_gods(bazi["fourPillars"], bazi["dayMaster"], data["gender"])
+    ten_gods = compute_ten_gods(bazi["fourPillars"], bazi["dayMaster"], data["gender"])
     element_suggestion = suggest_five_elem(
         bazi["dayMaster"],
         strength["strength"],
         strength["stars_strength"],
         fe["fiveElementsScore_adjusted"]
     )
-    ten_gods_advice_result = ten_god_advice(
+    
+    advice = ten_god_advice(
         bazi["dayMaster"],
         element_suggestion["favored"],
         element_suggestion["unfavored"]
@@ -660,25 +808,43 @@ def generate_summary(data):
     } """
 
 
-    tenGods_table = dataframe_to_json(ten_gods_result["tenGodsTable"])
 
     # 出生与八字结构
     result = {
         "bazi": bazi["fourPillars"],
         #"bazi_info": bazi['bazi_explanation'],
-        "fiveElement_explanation": fe['fiveElement_explanation'], 
-        "fiveElement_score_explanation": fe['fiveElement_score_explanation'],
+        "fiveElementsScore": fe["fiveElementsScore"], 
+        "fiveElementsScore_eng": fe["fiveElementsScore_eng"],
+        "fiveElementsScore_adjusted": fe["fiveElementsScore_adjusted"],
+        "fiveElementsScore_adjusted_eng": fe["fiveElementsScore_adjusted_eng"],
+        "fiveElementsState": fe["fiveElementsState"],
+        "fiveElementsState_eng": fe["fiveElementsState_eng"],
+        "pillarsElements": fe["pillarsElements"],
+        "pillarsElements_eng": fe["pillarsElements_eng"],
+
         "dayElement": strength["dayElement"],
+        "dayElement_eng": strength["dayElement_eng"],
         "dayElement_state":strength["dayElement_state"],
+        "dayElement_state_eng": strength["dayElement_state_eng"],
         "strength" : strength['strength'], 
-        "element_suggestion": element_suggestion['suggestion'], 
-        "tenGods_table": tenGods_table,
-        "tenGods_advice": ten_gods_advice_result
+        "strength_eng": strength["strength_eng"],
+        "strength_explanation": strength["strength_explanation"],
+        "strength_explanation_eng": strength["strength_explanation_eng"],
+
+        "tenGods": ten_gods["tenGods"],
+        "tenGodsTable": dataframe_to_json(ten_gods["tenGodsTable"]),
+        "tenGodsSummary": ten_gods["tenGodsSummary"],
+
+        "favored_elements": element_suggestion["favored"], 
+        "favored_elements_eng": element_suggestion["favored_eng"], 
+        "unfavored_elements": element_suggestion["unfavored"], 
+        "unfavored_elements_eng": element_suggestion["unfavored_eng"], 
+        "element_suggestion": element_suggestion["suggestion"], 
+        "element_suggestion_eng": element_suggestion["suggestion_eng"], 
+
+        "tenGods_advice": advice["advice"],
+        "tenGods_advice_eng": advice["advice_eng"]
     }
-
-
-
-    #ten_god_score = "\n" + " ".join([f"{k} = {round(v, 2)}" for k, v in ten_gods_result["tenGodsSummary"].items()]) + "。"
 
     return result
 
